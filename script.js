@@ -26,6 +26,8 @@ const PLAYER_ROLE = {
 class ObjectDraggable {
     constructor(image, initX, initY, r){
         this.image = image; 
+        this.initX = initX;
+        this.initY = initY;
         this.posX = initX;
         this.posY = initY;
         this.r = r;
@@ -184,6 +186,16 @@ class Board {
             this.objects.push(player);
         })
     }
+
+    reset() {
+        /* Moves every object to its initial position. */ 
+        this.context.clearRect(0, 0, this.width, this.height);
+        this.objects.forEach(object => {
+            object.posX = object.initX;
+            object.posY = object.initY;
+            object.draw(this.context);
+        });
+    }
 }
 
 /********************************/
@@ -200,7 +212,13 @@ window.addEventListener('load', function(){
     canvas.height=background.height * COURT_RESIZE_RATIO;
 
     let board = new Board(canvas);
+
     board.add_team(new Team(TEAM.home, 10, 10));
     board.add_team(new Team(TEAM.guest, board.canvas.width - 45, 10));
     board.draw();
+
+    const buttonReset = document.getElementById('buttonReset');
+    buttonReset.addEventListener('click', function(){
+        board.reset();
+    });
 })

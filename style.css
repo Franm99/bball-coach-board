@@ -4,8 +4,38 @@
     box-sizing: border-box;
 }
 
+#main {
+    margin: 10px;
+}
+
+#div_buttons {
+    position: absolute;
+    left: 40%;
+    margin: 2%;
+}
+
+.button1 {
+    border: none;
+    color: white;
+    background-color: rgb(114, 114, 114);
+    border-radius: 5%;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 16px;
+
+    /* position: absolute;
+    top: 5%;
+    left: 40%; */
+    cursor: pointer;
+}
+
+.button1:active {
+    background-color: rgb(92, 92, 92);
+}
+
 #canvas1 {
-    /* border: solid 1px black; */
+    border: solid 3px red;
     background: url(img/half-court.jpg);
     background-size: auto 100%;
     background-repeat: no-repeat;
