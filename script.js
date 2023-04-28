@@ -1,8 +1,11 @@
 /*
 TODO: Players collision
-TODO: 
-
+TODO: Buttons for different actions:
+    - reset initial distribution
+    - start drawing lines (will draw lines following players/ball movements).
+    - hide options (for teams or players)
 */
+
 const COURT_RESIZE_RATIO = 0.2
 
 const TEAM = {
@@ -18,8 +21,174 @@ const PLAYER_ROLE = {
     center: 4
 }
 
-window.addEventListener('load', function(){
+/**** CLASS DEFINITIONS ****/
 
+class ObjectDraggable {
+    constructor(image, initX, initY, r){
+        this.image = image; 
+        this.posX = initX;
+        this.posY = initY;
+        this.r = r;
+    }
+}
+
+class Ball extends ObjectDraggable{
+    constructor(initX, initY, r) {
+        super(document.getElementById('ball'), initX, initY, r);
+    }
+
+    draw(context) {
+        context.drawImage(
+            this.image, 0, 0, this.image.width, this.image.height,
+            this.posX, this.posY, this.r * 2, this.r * 2
+        );
+    }
+}
+
+class Player extends ObjectDraggable{
+    constructor(team, role, initX, initY) {
+        const aspect_ratio = 4  // Resize players on board
+        const r = 75           
+        super(document.getElementById('players'), initX, initY, r / aspect_ratio);
+
+        this.team = team;
+        this.role = role;
+        this.d = 2 * this.r * aspect_ratio;
+    }
+
+    draw(context) {
+        context.drawImage(
+            this.image, this.role * this.d, this.team * this.d, this.d, this.d,
+            this.posX, this.posY, this.r * 2, this.r * 2 
+        );
+    }
+
+    getId() {
+        const team_name = Object.keys(TEAM).find(key => TEAM[key] === this.team);
+        const role_name = Object.keys(PLAYER_ROLE).find(key => PLAYER_ROLE[key] === this.role);
+        return team_name + ', ' + role_name;
+    }
+}
+
+class Team {
+    constructor(team, teamInitX, teamInitY) {
+        this.team = team;
+        this.teamInitX = teamInitX;
+        this.teamInitY = teamInitY;
+        this.playersOffset = 50;
+
+        this.players = [];
+        for (let i = 0; i < 5; i++) {
+            this.players.push(new Player(this.team, i, this.teamInitX, this.teamInitY + i * this.playersOffset));
+        }
+    }
+
+    draw(context) {
+        this.players.forEach(player => {
+            player.draw(context);
+        })
+    }
+}
+
+
+class Board {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.context = this.canvas.getContext('2d');
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+
+        this.objects = [new Ball(this.width / 2, this.height / 2, 15)]; // Always ball on board.
+        this.current_object;
+        this.dragging_object = false;
+
+        this.startX;
+        this.startY;
+
+        // Event Listeners
+        this.canvas.addEventListener('mousedown', e=> {
+            /* Dragging object. */
+            e.preventDefault();
+            this.startX = parseInt(e.offsetX);
+            this.startY = parseInt(e.offsetY);
+
+            this.objects.forEach(object => {
+                if (this.is_mouse_in_object(this.startX, this.startY, object)){
+                    this.current_object = object;
+                    this.dragging_object = true;
+                    return;                      
+                }
+            });
+        });
+
+        this.canvas.addEventListener('mouseup', e=> {
+            /* Dropping object.  */
+            if (!this.dragging_object) { return; }
+            e.preventDefault();
+            this.dragging_object = false;
+
+        });
+
+        this.canvas.addEventListener('mouseout', e=> {
+            /* Mouse out of canvas, drop object. */
+            if (!this.dragging_object) { return; }
+            e.preventDefault();
+        });
+
+        this.canvas.addEventListener('mousemove', e=> {
+            /* Move object when dragged. */
+            if (!this.dragging_object) {
+                return;
+            }
+            else {
+                e.preventDefault();
+
+                let mouseX = parseInt(e.offsetX);
+                let mouseY = parseInt(e.offsetY);
+
+                let dx = mouseX - this.startX;
+                let dy = mouseY - this.startY;
+
+                this.current_object.posX += dx;
+                this.current_object.posY += dy;
+
+                this.draw();
+
+                this.startX = mouseX;
+                this.startY = mouseY;
+            }
+
+        });
+    }
+
+    draw() {
+        this.context.clearRect(0, 0, this.width, this.height);
+        this.objects.forEach(object => {
+            object.draw(this.context);
+        });
+    }
+
+    is_mouse_in_object(mouseX, mouseY, object) {
+        let cx = object.posX + object.r;
+        let cy = object.posY + object.r;
+
+        let dx = Math.abs(cx - mouseX);
+        let dy = Math.abs(cy - mouseY);
+
+        if (dx < object.r && dy < object.r) { return true; }
+        else { return false; }
+    }
+
+    add_team(team) {
+        team.players.forEach(player => {
+            this.objects.push(player);
+        })
+    }
+}
+
+/********************************/
+
+window.addEventListener('load', function(){
     // Setting background image.
     const canvas = document.getElementById('canvas1');
     const ctx = canvas.getContext('2d');
@@ -30,157 +199,8 @@ window.addEventListener('load', function(){
     canvas.width=background.width * COURT_RESIZE_RATIO;
     canvas.height=background.height * COURT_RESIZE_RATIO;
 
-
-    class Player {
-        constructor(board, team, role, posX, posY) {
-            this.board = board;
-            this.team = team;         // To select a row from the players template
-            this.role = role; // To select a column from the players template
-
-            this.image = document.getElementById("players");
-            
-            this.d = 150;  // diameter
-
-            this.aspect_radius = 4;
-
-            this.ad = this.d / this.aspect_radius;  // actual diameter after resize
-
-            this.posX = posX;
-            this.posY = posY;
-
-            this.cX = this.posX + this.ad/2;
-            this.cY = this.posY + this.ad/2; 
-        }
-
-        draw(context) {
-            context.drawImage(this.image, this.role * this.d, this.team * this.d,
-                this.d, this.d, this.posX, this.posY, 
-                this.d / this.aspect_radius, this.d / this.aspect_radius);
-        }
-
-        update(deltaTime) {
-            const dX = this.cX - this.board.mouse.x;
-            const dY = this.cY - this.board.mouse.y;
-            const distance = Math.sqrt(dX*dX + dY*dY);
-
-            // todo: Add collisions. Players dissapear when passing over another one.
-            if (distance < this.ad/2 && this.board.mouse.pressed) {
-                if (!this.board.mouse.pressed){this.selected = false}
-                this.posX = this.board.mouse.x - this.ad/2 ;
-                this.posY = this.board.mouse.y - this.ad/2;
-
-                this.cX = this.posX + this.ad/2;
-                this.cY = this.posY + this.ad/2;  
-            }
-
-        }
-    }
-
-
-    class Team {
-        constructor(board, team){
-            this.board = board;
-            this.team = team;
-
-            this.posX;
-            this.posY = 50;
-
-            this.players = [];
-
-
-            // choose position based on team
-            if (this.team == TEAM.home){
-                this.posX = 10;
-            }
-            else {
-                this.posX = this.board.width - 45;
-            }
-
-            for (let i = 0; i < 5; i++){
-                this.players.push(new Player(this.board, this.team, i, this.posX, this.posY + i*50));
-            }
-        }
-
-        draw(context) {
-            this.players.forEach(player => {
-                player.draw(context);
-            });
-        }
-
-        update(deltaTime) {
-            this.players.forEach(player => {
-                player.update(deltaTime);
-            })
-        }
-    }
-
-
-    // Board class
-    class Board {
-        constructor(canvas) {
-            this.canvas = canvas;
-            this.width = this.canvas.width;
-            this.height = this.canvas.height;
-
-            this.mouse = {
-                x: this.width * 0.5,
-                y: this.height * 0.5,
-                pressed: false,
-            };
-
-            this.fps = 120;
-            this.timer = 0;
-            this.interval = 1000/this.fps;
-
-            this.team1 = new Team(this, TEAM.home);
-            this.team2 = new Team(this, TEAM.guest);
-
-
-            // event listeners
-            canvas.addEventListener('mousemove', e => {
-                this.mouse.x = e.offsetX;
-                this.mouse.y = e.offsetY;
-
-                if (e.which == 1){
-                    this.mouse.pressed = true;
-                }
-                else {
-                    this.mouse.pressed = false;
-                }
-                
-            })
-
-
-        }
-
-        render(context, deltaTime) {
-            if (this.timer > this.interval){
-                context.clearRect(0, 0, canvas.width, canvas.height);
-
-                this.team1.draw(context);
-                this.team1.update(deltaTime);
-
-                this.team2.draw(context);
-                this.team2.update(deltaTime);
-
-                this.timer = 0;
-            }
-
-            this.timer += deltaTime;
-        }
-    }
-    
-    const board = new Board(canvas);
-
-    let lastTime = 0;
-    function animate(timeStamp){
-        const deltaTime = timeStamp - lastTime;
-
-        lastTime = timeStamp;
-
-        board.render(ctx, deltaTime);
-        window.requestAnimationFrame(animate); // Create endless animation loop
-    }
-
-    animate(0);
+    let board = new Board(canvas);
+    board.add_team(new Team(TEAM.home, 10, 10));
+    board.add_team(new Team(TEAM.guest, board.canvas.width - 45, 10));
+    board.draw();
 })
