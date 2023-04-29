@@ -83,6 +83,8 @@ class Team {
         for (let i = 0; i < 5; i++) {
             this.players.push(new Player(this.team, i, this.teamInitX, this.teamInitY + i * this.playersOffset));
         }
+
+        this.hidden = false;
     }
 
     draw(context) {
@@ -100,12 +102,19 @@ class Board {
         this.width = this.canvas.width;
         this.height = this.canvas.height;
 
-        this.objects = [new Ball(this.width / 2, this.height / 2, 15)]; // Always ball on board.
+        this.startX;
+        this.startY;
+
+        this.ball = new Ball(this.width / 2, this.height / 2, 15);
+        this.team_home = new Team(TEAM.home, 10, 10);
+        this.team_guest = new Team(TEAM.guest, this.canvas.width - 45, 10);
+
+        this.objects = this.get_objects_list();
+
         this.current_object;
         this.dragging_object = false;
 
-        this.startX;
-        this.startY;
+        this.draw();
 
         // Event Listeners
         this.canvas.addEventListener('mousedown', e=> {
@@ -165,6 +174,7 @@ class Board {
 
     draw() {
         this.context.clearRect(0, 0, this.width, this.height);
+
         this.objects.forEach(object => {
             object.draw(this.context);
         });
@@ -185,6 +195,38 @@ class Board {
         team.players.forEach(player => {
             this.objects.push(player);
         })
+    }
+
+    hide_team(team_id) {
+        if (team_id == 0) {
+            this.team_home.hidden = true;
+        }
+        else {
+            this.team_guest.hidden = true;
+        }
+        this.objects = this.get_objects_list();
+        this.draw();
+    }
+
+    show_team(team_id) {
+        if (team_id == 0) {
+            this.team_home.hidden = false;
+        }
+        else {
+            this.team_guest.hidden = false;
+        }
+        this.objects = this.get_objects_list();
+        this.draw();
+    }
+
+    get_objects_list() {
+        let objects = [];
+        objects.push(this.ball);
+
+        if (!this.team_home.hidden) { objects = objects.concat(this.team_home.players); }
+        if (!this.team_guest.hidden) { objects = objects.concat(this.team_guest.players); }
+
+        return objects;
     }
 
     reset() {
@@ -213,12 +255,27 @@ window.addEventListener('load', function(){
 
     let board = new Board(canvas);
 
-    board.add_team(new Team(TEAM.home, 10, 10));
-    board.add_team(new Team(TEAM.guest, board.canvas.width - 45, 10));
-    board.draw();
-
     const buttonReset = document.getElementById('buttonReset');
     buttonReset.addEventListener('click', function(){
         board.reset();
     });
+
+    const checkboxHome = document.getElementById('homeTeam');
+    checkboxHome.addEventListener('change', function() {
+        if (!this.checked) {
+          board.hide_team(TEAM.home);
+        } else {
+            board.show_team(TEAM.home);
+        }
+      });
+
+    const checkboxGuest = document.getElementById('guestTeam');
+    checkboxGuest.addEventListener('change', function() {
+        if (!this.checked) {
+          board.hide_team(TEAM.guest);
+        } else {
+            board.show_team(TEAM.guest);
+        }
+      });
+
 })
