@@ -1,9 +1,7 @@
 /*
 TODO: Players collision
 TODO: Buttons for different actions:
-    - reset initial distribution
     - start drawing lines (will draw lines following players/ball movements).
-    - hide options (for teams or players)
 */
 
 const COURT_RESIZE_RATIO = 0.2
@@ -31,6 +29,8 @@ class ObjectDraggable {
         this.posX = initX;
         this.posY = initY;
         this.r = r;
+
+        this.hidden = false;
     }
 }
 
@@ -92,29 +92,41 @@ class Team {
             player.draw(context);
         })
     }
+
+    show(is_shown = true) {
+        this.players.forEach(player => {
+            if (is_shown) {
+                player.hidden = false;
+            }
+            else {
+                player.hidden = true;
+            }
+        })
+    }
 }
 
 
 class Board {
     constructor(canvas) {
+        // Canvas related properties
         this.canvas = canvas;
         this.context = this.canvas.getContext('2d');
         this.width = this.canvas.width;
         this.height = this.canvas.height;
-
         this.startX;
         this.startY;
 
+        // Objects
         this.ball = new Ball(this.width / 2, this.height / 2, 15);
         this.team_home = new Team(TEAM.home, 10, 10);
         this.team_guest = new Team(TEAM.guest, this.canvas.width - 45, 10);
+        this.objects = [].concat(this.ball, this.team_home.players, this.team_guest.players);
 
-        this.objects = this.get_objects_list();
-
+        // Parameters to drag & drop
         this.current_object;
         this.dragging_object = false;
 
-        this.draw();
+        this.draw();  // Initial draw
 
         // Event Listeners
         this.canvas.addEventListener('mousedown', e=> {
@@ -176,7 +188,9 @@ class Board {
         this.context.clearRect(0, 0, this.width, this.height);
 
         this.objects.forEach(object => {
-            object.draw(this.context);
+            if (!object.hidden) {
+                object.draw(this.context);
+            }
         });
     }
 
@@ -191,40 +205,11 @@ class Board {
         else { return false; }
     }
 
-    add_team(team) {
-        team.players.forEach(player => {
-            this.objects.push(player);
-        })
-    }
-
-    hide_team(team_id) {
-        if (team_id == 0) {
-            this.team_home.hidden = true;
-        }
-        else {
-            this.team_guest.hidden = true;
-        }
-        this.objects = this.get_objects_list();
-        this.draw();
-    }
-
-    show_team(team_id) {
-        if (team_id == 0) {
-            this.team_home.hidden = false;
-        }
-        else {
-            this.team_guest.hidden = false;
-        }
-        this.objects = this.get_objects_list();
-        this.draw();
-    }
-
     get_objects_list() {
         let objects = [];
         objects.push(this.ball);
-
-        if (!this.team_home.hidden) { objects = objects.concat(this.team_home.players); }
-        if (!this.team_guest.hidden) { objects = objects.concat(this.team_guest.players); }
+        objects.concat(this.team_home.players);
+        objects.concat(this.team_guest.players);
 
         return objects;
     }
@@ -263,19 +248,21 @@ window.addEventListener('load', function(){
     const checkboxHome = document.getElementById('homeTeam');
     checkboxHome.addEventListener('change', function() {
         if (!this.checked) {
-          board.hide_team(TEAM.home);
+            board.team_home.show(false);
         } else {
-            board.show_team(TEAM.home);
+            board.team_home.show(true);
         }
+        board.draw();
       });
 
     const checkboxGuest = document.getElementById('guestTeam');
     checkboxGuest.addEventListener('change', function() {
         if (!this.checked) {
-          board.hide_team(TEAM.guest);
+            board.team_guest.show(false);
         } else {
-            board.show_team(TEAM.guest);
+            board.team_guest.show(true);
         }
+        board.draw();
       });
 
 })
