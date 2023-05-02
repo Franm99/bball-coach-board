@@ -87,8 +87,6 @@ class Team {
         for (let i = 0; i < 5; i++) {
             this.players.push(new Player(this.team, i, this.teamInitX, this.teamInitY + i * this.playersOffset));
         }
-
-        this.hidden = false;
     }
 
     draw(context) {
@@ -263,31 +261,36 @@ function init_board(canvas, display=COURT.half){
 /*******************/
 
 window.addEventListener('load', function(){
-    // Setting background image.
+    // Get HTML elements 
     const canvas = document.getElementById('canvas1');
     const ctx = canvas.getContext('2d');
 
-    let board = null;
+    const toggleSwitch = document.getElementById('toggleBg');
+    const buttonReset = document.getElementById('buttonReset');
+    const checkboxHome = document.getElementById('homeTeam');
+    const checkboxGuest = document.getElementById('guestTeam');
 
-    board = init_board(canvas);
-
+    // Initialize board
+    let board = init_board(canvas);
 
     // Event listeners for HTML elements.
-    const toggleSwitch = document.getElementById('toggleBg');
+    
     toggleSwitch.addEventListener('change', function() {
         if (!this.checked) {
             board = init_board(canvas, COURT.half);
         } else {
             board = init_board(canvas, COURT.full);
         }
+
+        // By default, both teams will be shown when a board is initialized.
+        checkboxHome.checked = true;
+        checkboxGuest.checked = true;
     });
 
-    const buttonReset = document.getElementById('buttonReset');
     buttonReset.addEventListener('click', function(){
         board.reset();
     });
 
-    const checkboxHome = document.getElementById('homeTeam');
     checkboxHome.addEventListener('change', function() {
         // TODO [FIX] state not persistent when changing board display.
         if (!this.checked) {
@@ -298,7 +301,7 @@ window.addEventListener('load', function(){
         board.draw();
       });
 
-    const checkboxGuest = document.getElementById('guestTeam');
+    
     checkboxGuest.addEventListener('change', function() {
         // TODO [FIX] state not persistent when changing board display.
         if (!this.checked) {
