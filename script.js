@@ -1,7 +1,6 @@
 /*
 TODO: Players collision
-TODO: Buttons for different actions:
-    - start drawing lines (will draw lines following players/ball movements).
+TODO: draw players/ball trails. Try to use a second canvas for trails so they are not cleaned up with clearRect on first canvas.
 */
 
 const COURT_RESIZE_RATIO = 0.2
@@ -17,6 +16,11 @@ const PLAYER_ROLE = {
     small_forward: 2,
     power_forward: 3,
     center: 4
+}
+
+const COURT = {
+    half: 0,
+    full: 1
 }
 
 /**** CLASS DEFINITIONS ****/
@@ -227,18 +231,56 @@ class Board {
 
 /********************************/
 
+
+/**** FUNCTIONS ****/
+
+function init_board(canvas, display=COURT.half){
+    /* Initializes the canvas depending on what display is desired: Full or Half court. */
+
+    let im_path;
+    let image = new Image();
+    let resize_ratio;
+
+    if (display == COURT.half){
+        im_path = 'img/half-court.jpg';
+        resize_ratio = 0.2;
+    } else {
+        im_path = 'img/full-court.jpg';
+        resize_ratio = 0.1;
+    }
+
+    image.src = im_path;
+
+    canvas.style.background = `url('${im_path}')`;
+    canvas.style.backgroundSize = "auto 100%";
+    canvas.style.backgroundRepeat = "no-repeat";
+    canvas.width = image.width * resize_ratio;
+    canvas.height = image.height * resize_ratio;
+
+    return new Board(canvas);
+}
+
+/*******************/
+
 window.addEventListener('load', function(){
     // Setting background image.
     const canvas = document.getElementById('canvas1');
     const ctx = canvas.getContext('2d');
 
-    const background = new Image();
-    background.src = "img/half-court.jpg";
+    let board = null;
 
-    canvas.width=background.width * COURT_RESIZE_RATIO;
-    canvas.height=background.height * COURT_RESIZE_RATIO;
+    board = init_board(canvas);
 
-    let board = new Board(canvas);
+
+    // Event listeners for HTML elements.
+    const toggleSwitch = document.getElementById('toggleBg');
+    toggleSwitch.addEventListener('change', function() {
+        if (!this.checked) {
+            board = init_board(canvas, COURT.half);
+        } else {
+            board = init_board(canvas, COURT.full);
+        }
+    });
 
     const buttonReset = document.getElementById('buttonReset');
     buttonReset.addEventListener('click', function(){
@@ -247,6 +289,7 @@ window.addEventListener('load', function(){
 
     const checkboxHome = document.getElementById('homeTeam');
     checkboxHome.addEventListener('change', function() {
+        // TODO [FIX] state not persistent when changing board display.
         if (!this.checked) {
             board.team_home.show(false);
         } else {
@@ -257,6 +300,7 @@ window.addEventListener('load', function(){
 
     const checkboxGuest = document.getElementById('guestTeam');
     checkboxGuest.addEventListener('change', function() {
+        // TODO [FIX] state not persistent when changing board display.
         if (!this.checked) {
             board.team_guest.show(false);
         } else {
@@ -264,5 +308,4 @@ window.addEventListener('load', function(){
         }
         board.draw();
       });
-
 })
