@@ -1,6 +1,11 @@
 /*
-TODO: Players collision
-TODO: draw players/ball trails. Try to use a second canvas for trails so they are not cleaned up with clearRect on first canvas.
+TODO: Keep working on paths: 
+    - Different color depending on type of object (ball, team Home, team Guest)
+    - paths could shade so it's clear what's the most recent movement
+TODO: Keep working on button to start play:
+    - With JS, make button to keep pressed and change to Stop play when pressed again
+TODO: Add more options for default positions:
+TODO: Save last state when changing court (so when going back, the positions are the same as before)
 */
 
 const COURT_RESIZE_RATIO = 0.2
@@ -33,7 +38,7 @@ class ObjectDraggable {
         this.posX = initX;
         this.posY = initY;
         this.r = r;
-
+        this.path_color = "black";
         this.hidden = false;
     }
 }
@@ -41,6 +46,7 @@ class ObjectDraggable {
 class Ball extends ObjectDraggable{
     constructor(initX, initY, r) {
         super(document.getElementById('ball'), initX, initY, r);
+        this.path_color = "green";
     }
 
     draw(context) {
@@ -60,6 +66,10 @@ class Player extends ObjectDraggable{
         this.team = team;
         this.role = role;
         this.d = 2 * this.r * aspect_ratio;
+
+        if (this.team == TEAM.guest) {
+            this.path_color = "red";
+        } 
     }
 
     draw(context) {
@@ -146,6 +156,7 @@ class Board {
             this.objects.forEach(object => {
                 if (this.is_mouse_in_object(this.startX, this.startY, object)){
                     this.current_object = object;
+                    console.log(this.current_object.path_color);
                     this.dragging_object = true;
                     return;                      
                 }
@@ -251,8 +262,8 @@ class Board {
             this.context_back.beginPath();
             this.context_back.moveTo(mouseX, mouseY);
             this.context_back.lineTo(this.startX, this.startY);
-            this.context_back.strokeStyle = 'black';
-            this.context_back.lineWidth = 2;
+            this.context_back.strokeStyle = this.current_object.path_color;
+            this.context_back.lineWidth = 3;
             this.context_back.stroke();
             this.context_back.closePath();
         }
