@@ -109,29 +109,35 @@ class Team {
 
 
 class Board {
-    constructor(canvas) {
+    constructor() {
         // Canvas related properties
-        this.canvas = canvas;
-        this.context = this.canvas.getContext('2d');
-        this.width = this.canvas.width;
-        this.height = this.canvas.height;
+        this.canvas_back = document.getElementById('canvas1');
+        this.context_back = this.canvas_back.getContext('2d');
+        this.canvas_front = document.getElementById('canvas2');
+        this.context_front = this.canvas_front.getContext('2d');
+
+        this.width;
+        this.height;
         this.startX;
         this.startY;
 
-        // Objects
-        this.ball = new Ball(this.width / 2, this.height / 2, 15);
-        this.team_home = new Team(TEAM.home, 10, 10);
-        this.team_guest = new Team(TEAM.guest, this.canvas.width - 45, 10);
-        this.objects = [].concat(this.ball, this.team_home.players, this.team_guest.players);
+        // Elements for first canvas
+        this.ball;
+        this.team_guest;
+        this.team_home;
+        this.players;
 
         // Parameters to drag & drop
         this.current_object;
         this.dragging_object = false;
 
-        this.draw();  // Initial draw
+        // Parameters to draw lines
+        this.startPlay = false;
 
-        // Event Listeners
-        this.canvas.addEventListener('mousedown', e=> {
+        this.setup();
+
+        // Register Event Listeners
+        this.canvas_front.addEventListener('mousedown', e=> {
             /* Dragging object. */
             e.preventDefault();
             this.startX = parseInt(e.offsetX);
@@ -146,7 +152,7 @@ class Board {
             });
         });
 
-        this.canvas.addEventListener('mouseup', e=> {
+        this.canvas_front.addEventListener('mouseup', e=> {
             /* Dropping object.  */
             if (!this.dragging_object) { return; }
             e.preventDefault();
@@ -154,13 +160,13 @@ class Board {
 
         });
 
-        this.canvas.addEventListener('mouseout', e=> {
+        this.canvas_front.addEventListener('mouseout', e=> {
             /* Mouse out of canvas, drop object. */
             if (!this.dragging_object) { return; }
             e.preventDefault();
         });
 
-        this.canvas.addEventListener('mousemove', e=> {
+        this.canvas_front.addEventListener('mousemove', e=> {
             /* Move object when dragged. */
             if (!this.dragging_object) {
                 return;
@@ -174,26 +180,82 @@ class Board {
                 let dx = mouseX - this.startX;
                 let dy = mouseY - this.startY;
 
+                // Move object
                 this.current_object.posX += dx;
                 this.current_object.posY += dy;
 
-                this.draw();
+                this.draw_path(mouseX, mouseY);
+                this.draw_objects();
+                
 
                 this.startX = mouseX;
                 this.startY = mouseY;
+
             }
 
         });
     }
 
-    draw() {
-        this.context.clearRect(0, 0, this.width, this.height);
+    setup(display=COURT.half) {
+        /* Initializes the canvas depending on what display is desired: Full or Half court. */
+
+        let im_path;
+        let image = new Image();
+        let resize_ratio;
+
+        if (display == COURT.half){
+            im_path = 'img/half-court.jpg';
+            resize_ratio = 0.2;
+        } else {
+            im_path = 'img/full-court.jpg';
+            resize_ratio = 0.1;
+        }
+
+        image.src = im_path;
+
+        // First canvas
+        this.canvas_back.style.background = `url('${im_path}')`;
+        this.canvas_back.style.backgroundSize = "auto 100%";
+        this.canvas_back.style.backgroundRepeat = "no-repeat";
+        this.canvas_back.width = image.width * resize_ratio;
+        this.canvas_back.height = image.height * resize_ratio;
+
+        // Second canvas (same size)
+        this.canvas_front.width = image.width * resize_ratio;
+        this.canvas_front.height = image.height * resize_ratio;
+
+        this.width = this.canvas_back.width;
+        this.height = this.canvas_back.height;
+
+        // Objects
+        this.ball = new Ball(this.width / 2, this.height / 2, 15);
+        this.team_home = new Team(TEAM.home, 10, 10);
+        this.team_guest = new Team(TEAM.guest, this.width - 45, 10);
+        this.objects = [].concat(this.ball, this.team_home.players, this.team_guest.players);
+   
+        this.draw_objects();  // Initial draw
+    }
+
+    draw_objects() {
+        this.context_front.clearRect(0, 0, this.width, this.height);
 
         this.objects.forEach(object => {
             if (!object.hidden) {
-                object.draw(this.context);
+                object.draw(this.context_front);
             }
         });
+    }
+
+    draw_path(mouseX, mouseY) {
+        if (this.startPlay) {
+            this.context_back.beginPath();
+            this.context_back.moveTo(mouseX, mouseY);
+            this.context_back.lineTo(this.startX, this.startY);
+            this.context_back.strokeStyle = 'black';
+            this.context_back.lineWidth = 2;
+            this.context_back.stroke();
+            this.context_back.closePath();
+        }
     }
 
     is_mouse_in_object(mouseX, mouseY, object) {
@@ -218,12 +280,15 @@ class Board {
 
     reset() {
         /* Moves every object to its initial position. */ 
-        this.context.clearRect(0, 0, this.width, this.height);
+        this.context_back.clearRect(0, 0, this.width, this.height);
+        this.context_front.clearRect(0, 0, this.width, this.height);
         this.objects.forEach(object => {
             object.posX = object.initX;
             object.posY = object.initY;
-            object.draw(this.context);
+            object.draw(this.context_front);
         });
+
+        this.startPlay = false;
     }
 }
 
@@ -255,6 +320,11 @@ function init_board(canvas, display=COURT.half){
     canvas.width = image.width * resize_ratio;
     canvas.height = image.height * resize_ratio;
 
+    // Second canvas
+    let canvas2 = document.getElementById('canvas2');
+    canvas2.width = image.width * resize_ratio;
+    canvas2.height = image.height * resize_ratio;
+
     return new Board(canvas);
 }
 
@@ -262,29 +332,30 @@ function init_board(canvas, display=COURT.half){
 
 window.addEventListener('load', function(){
     // Get HTML elements 
-    const canvas = document.getElementById('canvas1');
-    const ctx = canvas.getContext('2d');
-
     const toggleSwitch = document.getElementById('toggleBg');
     const buttonReset = document.getElementById('buttonReset');
     const checkboxHome = document.getElementById('homeTeam');
     const checkboxGuest = document.getElementById('guestTeam');
+    const buttonPlay = document.getElementById('buttonPlay');
+    console.log(buttonPlay);
 
     // Initialize board
-    let board = init_board(canvas);
+    let board = new Board();
 
     // Event listeners for HTML elements.
     
     toggleSwitch.addEventListener('change', function() {
         if (!this.checked) {
-            board = init_board(canvas, COURT.half);
+            board.setup(COURT.half);
         } else {
-            board = init_board(canvas, COURT.full);
+            board.setup(COURT.full);
         }
 
         // By default, both teams will be shown when a board is initialized.
         checkboxHome.checked = true;
         checkboxGuest.checked = true;
+
+        board.startPlay = false;
     });
 
     buttonReset.addEventListener('click', function(){
@@ -292,23 +363,25 @@ window.addEventListener('load', function(){
     });
 
     checkboxHome.addEventListener('change', function() {
-        // TODO [FIX] state not persistent when changing board display.
         if (!this.checked) {
             board.team_home.show(false);
         } else {
             board.team_home.show(true);
         }
-        board.draw();
+        board.draw_objects();
       });
 
     
     checkboxGuest.addEventListener('change', function() {
-        // TODO [FIX] state not persistent when changing board display.
         if (!this.checked) {
             board.team_guest.show(false);
         } else {
             board.team_guest.show(true);
         }
-        board.draw();
+        board.draw_objects();
       });
+
+    buttonPlay.addEventListener('click', function(){
+        board.startPlay = true;
+    })
 })
