@@ -1,19 +1,17 @@
 /*
 TODO: Keep working on paths: 
-    - Different color depending on type of object (ball, team Home, team Guest)
     - paths could shade so it's clear what's the most recent movement
 TODO: Keep working on button to start play:
     - With JS, make button to keep pressed and change to Stop play when pressed again
 TODO: Add more options for default positions:
+    - Define "plays", create some of the basic ones.
+TODO: Add Undo button (and give the same functionality to Ctrl+Z)
 TODO: Save last state when changing court (so when going back, the positions are the same as before)
 */
 
-const COURT_RESIZE_RATIO = 0.2
+const TEAM = {home: 0, guest: 1};
 
-const TEAM = {
-    home: 0,
-    guest: 1
-}
+const COURT = {half: 0, full: 1};
 
 const PLAYER_ROLE = {
     point_guard: 0,
@@ -21,34 +19,51 @@ const PLAYER_ROLE = {
     small_forward: 2,
     power_forward: 3,
     center: 4
-}
+};
 
-const COURT = {
-    half: 0,
-    full: 1
-}
-
-/**** CLASS DEFINITIONS ****/
-
+/**
+ * Class for objects on a canvas that are draggable and moved.
+ * @class [abstract] ObjectDraggable
+ */
 class ObjectDraggable {
+    /**
+     * Class constructor.
+     * @param {HTMLImageElement} image - (Circular) Image or Sprite sheet.
+     * @param {Number} initX - Initial X position from top-left corner on canvas.
+     * @param {Number} initY - Initial Y position from top-left corner on canvas.
+     * @param {Number} r - Expected radius of image on canvas.
+     */
     constructor(image, initX, initY, r){
         this.image = image; 
         this.initX = initX;
         this.initY = initY;
-        this.posX = initX;
-        this.posY = initY;
+        this.posX = initX;  
+        this.posY = initY;  
         this.r = r;
         this.path_color = "black";
         this.hidden = false;
+
+        if (this.constructor === ObjectDraggable) {
+            throw new Error("Abstract classes can't be instantiated.")
+        }
     }
 }
 
+
+/**
+ * Ball class
+ * @class Ball
+ */
 class Ball extends ObjectDraggable{
     constructor(initX, initY, r) {
         super(document.getElementById('ball'), initX, initY, r);
         this.path_color = "green";
     }
 
+    /**
+     * Draws a basketball on canvas.
+     * @param {CanvasRenderingContext2D} context - Canvas context in where the player will be drawn.
+     */
     draw(context) {
         context.drawImage(
             this.image, 0, 0, this.image.width, this.image.height,
@@ -57,6 +72,11 @@ class Ball extends ObjectDraggable{
     }
 }
 
+
+/**
+ * Player class
+ * @class Player
+ */
 class Player extends ObjectDraggable{
     constructor(team, role, initX, initY) {
         const aspect_ratio = 4  // Resize players on board
@@ -72,21 +92,29 @@ class Player extends ObjectDraggable{
         } 
     }
 
+    /**
+     * Takes a player from the players Sprite sheet, and draws it on the given canvas context.
+     * @param {CanvasRenderingContext2D} context - Canvas context in where the player will be drawn.
+     */
     draw(context) {
         context.drawImage(
             this.image, this.role * this.d, this.team * this.d, this.d, this.d,
             this.posX, this.posY, this.r * 2, this.r * 2 
         );
     }
-
-    getId() {
-        const team_name = Object.keys(TEAM).find(key => TEAM[key] === this.team);
-        const role_name = Object.keys(PLAYER_ROLE).find(key => PLAYER_ROLE[key] === this.role);
-        return team_name + ', ' + role_name;
-    }
 }
 
+/**
+ * Team class.
+ * @class Team
+ */
 class Team {
+    /**
+     * Class constructor.
+     * @param {Number} team - from TEAM Enum.
+     * @param {Number} teamInitX - Initial X position for the whole team.
+     * @param {Number} teamInitY - Initial Y position for player 1. Players are placed vertically.
+     */
     constructor(team, teamInitX, teamInitY) {
         this.team = team;
         this.teamInitX = teamInitX;
@@ -99,13 +127,21 @@ class Team {
         }
     }
 
+    /**
+     * Draws team on canvas.
+     * @param {CanvasRenderingContext2D} context 
+     */
     draw(context) {
         this.players.forEach(player => {
             player.draw(context);
         })
     }
 
-    show(is_shown = true) {
+    /**
+     * Shows/Hides team.
+     * @param {Boolean} [Optional] is_shown 
+     */
+    show(is_shown=true) {
         this.players.forEach(player => {
             if (is_shown) {
                 player.hidden = false;
@@ -118,7 +154,14 @@ class Team {
 }
 
 
+/**
+ * Board class.
+ * @class Board
+ */
 class Board {
+    /**
+     * Class constructor.
+     */
     constructor() {
         // Canvas related properties
         this.canvas_back = document.getElementById('canvas1');
@@ -156,7 +199,6 @@ class Board {
             this.objects.forEach(object => {
                 if (this.is_mouse_in_object(this.startX, this.startY, object)){
                     this.current_object = object;
-                    console.log(this.current_object.path_color);
                     this.dragging_object = true;
                     return;                      
                 }
@@ -164,7 +206,7 @@ class Board {
         });
 
         this.canvas_front.addEventListener('mouseup', e=> {
-            /* Dropping object.  */
+            /* Dropping object. */
             if (!this.dragging_object) { return; }
             e.preventDefault();
             this.dragging_object = false;
@@ -207,9 +249,11 @@ class Board {
         });
     }
 
+    /**
+     * Initializes the canvas depending on what display is desired: Full or Half court.
+     * @param {Number} [Optional] display - Choose from COURT Enum.
+     */
     setup(display=COURT.half) {
-        /* Initializes the canvas depending on what display is desired: Full or Half court. */
-
         let im_path;
         let image = new Image();
         let resize_ratio;
@@ -247,6 +291,9 @@ class Board {
         this.draw_objects();  // Initial draw
     }
 
+    /**
+     * Draws all non-hidden objects on canvas.
+     */
     draw_objects() {
         this.context_front.clearRect(0, 0, this.width, this.height);
 
@@ -257,6 +304,11 @@ class Board {
         });
     }
 
+    /**
+     * Draws mouse path when dragging objects on canvas.
+     * @param {Number} mouseX 
+     * @param {Number} mouseY 
+     */
     draw_path(mouseX, mouseY) {
         if (this.startPlay) {
             this.context_back.beginPath();
@@ -269,6 +321,13 @@ class Board {
         }
     }
 
+    /**
+     * Checks if the mouse is over a specific object.
+     * @param {Number} mouseX 
+     * @param {Number} mouseY 
+     * @param {ObjectDraggable} object 
+     * @returns {Boolean} - True if mouse over object. False elsewhere.
+     */
     is_mouse_in_object(mouseX, mouseY, object) {
         let cx = object.posX + object.r;
         let cy = object.posY + object.r;
@@ -280,17 +339,10 @@ class Board {
         else { return false; }
     }
 
-    get_objects_list() {
-        let objects = [];
-        objects.push(this.ball);
-        objects.concat(this.team_home.players);
-        objects.concat(this.team_guest.players);
-
-        return objects;
-    }
-
+    /**
+     * Resets initial state on board.
+     */
     reset() {
-        /* Moves every object to its initial position. */ 
         this.context_back.clearRect(0, 0, this.width, this.height);
         this.context_front.clearRect(0, 0, this.width, this.height);
         this.objects.forEach(object => {
@@ -299,48 +351,12 @@ class Board {
             object.draw(this.context_front);
         });
 
-        this.startPlay = false;
+        this.startPlay = false; // Stop drawing paths.
     }
 }
 
-/********************************/
 
-
-/**** FUNCTIONS ****/
-
-function init_board(canvas, display=COURT.half){
-    /* Initializes the canvas depending on what display is desired: Full or Half court. */
-
-    let im_path;
-    let image = new Image();
-    let resize_ratio;
-
-    if (display == COURT.half){
-        im_path = 'img/half-court.jpg';
-        resize_ratio = 0.2;
-    } else {
-        im_path = 'img/full-court.jpg';
-        resize_ratio = 0.1;
-    }
-
-    image.src = im_path;
-
-    canvas.style.background = `url('${im_path}')`;
-    canvas.style.backgroundSize = "auto 100%";
-    canvas.style.backgroundRepeat = "no-repeat";
-    canvas.width = image.width * resize_ratio;
-    canvas.height = image.height * resize_ratio;
-
-    // Second canvas
-    let canvas2 = document.getElementById('canvas2');
-    canvas2.width = image.width * resize_ratio;
-    canvas2.height = image.height * resize_ratio;
-
-    return new Board(canvas);
-}
-
-/*******************/
-
+/** MAIN **/
 window.addEventListener('load', function(){
     // Get HTML elements 
     const toggleSwitch = document.getElementById('toggleBg');
@@ -348,7 +364,6 @@ window.addEventListener('load', function(){
     const checkboxHome = document.getElementById('homeTeam');
     const checkboxGuest = document.getElementById('guestTeam');
     const buttonPlay = document.getElementById('buttonPlay');
-    console.log(buttonPlay);
 
     // Initialize board
     let board = new Board();
@@ -394,5 +409,6 @@ window.addEventListener('load', function(){
 
     buttonPlay.addEventListener('click', function(){
         board.startPlay = true;
+        board.debug_positions();
     })
 })
