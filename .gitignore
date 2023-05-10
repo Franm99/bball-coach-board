@@ -2,3 +2,9 @@
 venv/
 
 view.py
+
+package.json
+package-lock.json
+node_modules/
+
+__tests__/
