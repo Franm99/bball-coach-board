@@ -31,20 +31,15 @@ class ObjectDraggable {
     /**
      * Class constructor.
      * @param {HTMLImageElement} image - (Circular) Image or Sprite sheet.
-     * @param {Number} initX - Initial X position from top-left corner on canvas.
-     * @param {Number} initY - Initial Y position from top-left corner on canvas.
+     * @param {Array.<Number>} initPos - Initial position from top-left corner on canvas.
      * @param {Number} r - Expected radius of image on canvas.
      * 
-     * TODO: Refactor how coordinates are handled: better use arrays like [x, y] saved in a unique element instead of x and y on their own.
      */
-    constructor(image, initX, initY, r){
+    constructor(image, initPos, r){
         this.image = image; 
-        this.initX = initX;
-        this.initY = initY;
-        this.posX = initX;  
-        this.posY = initY;
-        this.prevPosX = [];
-        this.prevPosY = [];  
+        this.initPos = initPos.slice();
+        this.pos = initPos.slice();
+        this.prevPosArray = []; 
         this.r = r;
         this.path_color = "black";
         this.hidden = false;
@@ -55,19 +50,16 @@ class ObjectDraggable {
     }
 
     save_last_position() {
-        this.prevPosX.push(this.posX);
-        this.prevPosY.push(this.posY);
+        this.prevPosArray.push(this.pos.slice());
 
-        if (this.prevPosX.length > UNDO_LIMIT) {
-            this.prevPosX.shift();
-            this.prevPosY.shift();
+        if (this.prevPosArray.length > UNDO_LIMIT) {
+            this.prevPosArray.shift();
         }
     }
 
     undo_move() {
-        if (this.prevPosX.length > 0) {
-            this.posX = this.prevPosX.pop();
-            this.posY = this.prevPosY.pop();
+        if (this.prevPosArray.length > 0) {
+            this.pos = this.prevPosArray.pop().slice();
         }
     }
 }
@@ -78,8 +70,8 @@ class ObjectDraggable {
  * @class Ball
  */
 class Ball extends ObjectDraggable{
-    constructor(initX, initY, r) {
-        super(document.getElementById('ball'), initX, initY, r);
+    constructor(initPos, r) {
+        super(document.getElementById('ball'), initPos, r);
         this.path_color = "green";
     }
 
@@ -90,7 +82,7 @@ class Ball extends ObjectDraggable{
     draw(context) {
         context.drawImage(
             this.image, 0, 0, this.image.width, this.image.height,
-            this.posX, this.posY, this.r * 2, this.r * 2
+            this.pos[0], this.pos[1], this.r * 2, this.r * 2
         );
     }
 }
@@ -101,10 +93,10 @@ class Ball extends ObjectDraggable{
  * @class Player
  */
 class Player extends ObjectDraggable{
-    constructor(team, role, initX, initY) {
+    constructor(team, role, initPos) {
         const aspect_ratio = 4  // Resize players on board
         const r = 75           
-        super(document.getElementById('players'), initX, initY, r / aspect_ratio);
+        super(document.getElementById('players'), initPos, r / aspect_ratio);
 
         this.team = team;
         this.role = role;
@@ -127,7 +119,7 @@ class Player extends ObjectDraggable{
     draw(context) {
         context.drawImage(
             this.image, this.role * this.d, this.team * this.d, this.d, this.d,
-            this.posX, this.posY, this.r * 2, this.r * 2 
+            this.pos[0], this.pos[1], this.r * 2, this.r * 2 
         );
     }
 }
@@ -140,18 +132,16 @@ class Team {
     /**
      * Class constructor.
      * @param {Number} team - from TEAM Enum.
-     * @param {Number} teamInitX - Initial X position for the whole team.
-     * @param {Number} teamInitY - Initial Y position for player 1. Players are placed vertically.
+     * @param {Array.<Number>} initPos - Initial position for the whole team.
      */
-    constructor(team, teamInitX, teamInitY) {
+    constructor(team, initPos) {
         this.team = team;
-        this.teamInitX = teamInitX;
-        this.teamInitY = teamInitY;
+        this.initPos = initPos;
         this.playersOffset = 50;
 
         this.players = [];
         for (let i = 0; i < 5; i++) {
-            this.players.push(new Player(this.team, i, this.teamInitX, this.teamInitY + i * this.playersOffset));
+            this.players.push(new Player(this.team, i, [this.initPos[0], this.initPos[1] + i * this.playersOffset]));
         }
     }
 
@@ -214,8 +204,7 @@ class Board {
 
         this.width;
         this.height;
-        this.startX;
-        this.startY;
+        this.startPos = [];
 
         // Elements for first canvas
         this.ball;
@@ -238,15 +227,14 @@ class Board {
         this.canvas_front.addEventListener('mousedown', e=> {
             /* Dragging object. */
             e.preventDefault();
-            this.startX = parseInt(e.offsetX);
-            this.startY = parseInt(e.offsetY);
+            this.startPos = [parseInt(e.offsetX), parseInt(e.offsetY)];
 
             this.objects.forEach(object => {
-                if (this.is_mouse_in_object(this.startX, this.startY, object)){
+                if (this.is_mouse_in_object(this.startPos, object)){
 
                     this.add_action(object);
                     this.dragging_object = true;
-                    this.current_action.path.push([this.startX, this.startY]);
+                    this.current_action.path.push(this.startPos);
                     return;                      
                 }
             });
@@ -273,27 +261,21 @@ class Board {
             else {
                 e.preventDefault();
 
-                let mouseX = parseInt(e.offsetX);
-                let mouseY = parseInt(e.offsetY);
-
-                let dx = mouseX - this.startX;
-                let dy = mouseY - this.startY;
+                let mousePos = [parseInt(e.offsetX), parseInt(e.offsetY)];
+                let distance = [mousePos[0] - this.startPos[0], mousePos[1] - this.startPos[1]];
 
                 // Move object
-                this.current_action.object.posX += dx;
-                this.current_action.object.posY += dy;
+                this.current_action.object.pos[0] += distance[0];
+                this.current_action.object.pos[1] += distance[1];
 
-
-                this.current_action.path.push([mouseX, mouseY]);
+                this.current_action.path.push(mousePos);
 
                 if (this.startPlay) {
-                    this.draw_path([this.startX, this.startY], [mouseX, mouseY]);
+                    this.draw_path(this.startPos, mousePos);
                 }
                 this.draw_objects();
 
-                this.startX = mouseX;
-                this.startY = mouseY;
-
+                this.startPos = mousePos;
             }
 
         });
@@ -333,9 +315,9 @@ class Board {
         this.height = this.canvas_back.height;
 
         // Objects
-        this.team_guest = new Team(TEAM.guest, this.width - 45, 10);
-        this.team_home = new Team(TEAM.home, 10, 10);
-        this.ball = new Ball(this.width / 2, this.height / 2, 15);
+        this.team_guest = new Team(TEAM.guest, [this.width - 45, 10]);
+        this.team_home = new Team(TEAM.home, [10, 10]);
+        this.ball = new Ball([this.width / 2, this.height / 2], 15);
         this.objects = [].concat(this.team_guest.players, this.team_home.players, this.ball);
    
         this.draw_objects();  // Initial draw
@@ -373,7 +355,7 @@ class Board {
         // todo: Too much things happening here. Refactor a bit.
 
         if (this.actions.length == 0) {
-            return;  // No actions saved.
+            return;  // No actions can be reversed.
         }
 
         this.actions.pop();
@@ -405,20 +387,19 @@ class Board {
 
     /**
      * Checks if the mouse is over a specific object.
-     * @param {Number} mouseX 
-     * @param {Number} mouseY 
+     * @param {Array} mousePos 
      * @param {ObjectDraggable} object 
      * @returns {Boolean} - True if mouse over object. False elsewhere.
      */
-    is_mouse_in_object(mouseX, mouseY, object) {
-        let cx = object.posX + object.r;
-        let cy = object.posY + object.r;
+    is_mouse_in_object(mousePos, object) {
+        let center = [object.pos[0] + object.r, object.pos[1] + object.r];
+        let distance = [Math.abs(center[0] - mousePos[0]), Math.abs(center[1] - mousePos[1])];
 
-        let dx = Math.abs(cx - mouseX);
-        let dy = Math.abs(cy - mouseY);
-
-        if (dx < object.r && dy < object.r) { return true; }
-        else { return false; }
+        if (distance[0] < object.r && distance[1] < object.r) { 
+            return true; 
+        } else { 
+            return false; 
+        }
     }
 
     add_action(object) {
@@ -440,8 +421,7 @@ class Board {
         this.context_back.clearRect(0, 0, this.width, this.height);
         this.context_front.clearRect(0, 0, this.width, this.height);
         this.objects.forEach(object => {
-            object.posX = object.initX;
-            object.posY = object.initY;
+            object.pos = object.initPos.slice();
             object.draw(this.context_front);
         });
 
@@ -507,6 +487,7 @@ window.addEventListener('load', function(){
     });
 
     buttonUndo.addEventListener('click', function(){
+        // todo: If no actions on board, disable button.
         board.undo_action();
     });
 })
