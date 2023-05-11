@@ -105,3 +105,40 @@ input:checked + .slider:before {
     border-radius: 50%;
 }
 
+.cat {
+    margin: 2px;
+    background-color: rgb(114, 114, 114);
+    border: none;
+    border-radius: 5%;
+    overflow: hidden;
+    float: left;
+    cursor: pointer;
+}
+
+.cat label {
+    float: left;
+    line-height: 3.0em;
+    width: 8.0em;
+    height: 3.0em;
+}
+
+.cat label span {
+    text-align: center;
+    padding: 3px 0;
+    display: block;
+    text-decoration: none;
+    font-size: 16px;
+}
+
+.cat label input {
+    position: absolute;
+    display: none;
+    color: white !important;
+}
+
+.cat label input + span {color: white;}
+
+.cat input:checked + span {
+    color: white;
+    background-color: rgb(92, 92, 92);
+}
