@@ -192,9 +192,9 @@ class Board {
      */
     constructor(display) {
         // Canvas related properties
-        this.canvas_back = document.getElementById('canvas1');
+        this.canvas_back = document.getElementById('canvas2');
         this.context_back = this.canvas_back.getContext('2d');
-        this.canvas_front = document.getElementById('canvas2');
+        this.canvas_front = document.getElementById('canvas1');
         this.context_front = this.canvas_front.getContext('2d');
 
         this.startPos = [];
